@@ -4,6 +4,10 @@ from OpenGL.GLU import *
 import numpy   # Use np instead of numpy in the code
 from OpenGL.arrays import GLfloat_3  # For GLfloat_3
 
+
+
+
+
 #creating the window viewing capability
 class Viewer(object):
     def __init__(self):
@@ -79,3 +83,94 @@ if __name__=="__main__":
 
 
 #rendering with the viewer
+
+def render(self):
+    self.init_view()
+
+    glEnable(GL_LIGHTING)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glLoadIdentity()
+    loc=self.interaction.translation
+    glTranslated(loc[0],loc[1],loc[2])
+    glMultMatrixf(self.interaction.trackball.matrix)
+
+    currentModelView= numpy.array(glGetFloatv(GL_MODELVIEW_MATRIX))
+    self.modelView = numpy.transpose(currentModelView)
+    self.inverseModelView = inv(numpy.transpose(currentModelView))
+
+    self.scene.render()
+
+
+        # draw the grid
+    glDisable(GL_LIGHTING)
+    glCallList(G_OBJ_PLANE)
+    glPopMatrix()
+
+        # flush the buffers so that the scene can be drawn
+    glFlush()
+
+
+
+def init_view(self):
+    """ initialize the projection matrix """
+    xSize, ySize = glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT)
+    aspect_ratio = float(xSize) / float(ySize)
+
+    # load the projection matrix. Always the same
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+
+    glViewport(0, 0, xSize, ySize)
+    gluPerspective(70, aspect_ratio, 0.1, 1000.0)
+    glTranslated(0, 0, -15)
+
+
+class Scene(object):
+    PLACE_DEPTH= 15.0
+
+
+    def __init__(self):
+        # all the nodes
+        self.node_list= list()
+        #clicked or selected one :node
+        self.selected_node = None
+
+    def add_node (self,node):
+        #adding new node
+        self.node_list.append(node)
+    def render(self):
+        for node in node_list:
+            #now rendering the node :
+            node.render()
+
+class Node(object):
+    def __init__(self):
+        self.color_index=random.randint(color.MIN_COLOR,color.MAX_COLOR)
+        self.aabb=AABB([0,0,0],[0.5,0.5,0.5])
+        self.translation_matrix = numpy.identity(4)
+        self.scaling_matrix = numpy.identity(4)
+        self.selected=False
+
+    def render(self):
+        #rendering the node
+        glPushMatrix()
+        glMultMatrixf(numpy.transpose(self.translation_matrix))
+        glMultMatrixf(self.scaling_matrix)
+        cur_color = color.COLORS[self.color_index]
+        glColor3f(cur_color[0], cur_color[1], cur_color[2])
+        if self.selected:  # emit light if the node is selected
+            glMaterialfv(GL_FRONT, GL_EMISSION, [0.3, 0.3, 0.3])
+
+        self.render_self()
+
+        if self.selected:
+            glMaterialfv(GL_FRONT, GL_EMISSION, [0.0, 0.0, 0.0])
+        glPopMatrix()
+
+    def render_self(self):
+        raise NotImplementedError(
+            "The Abstract Node Class doesn't define 'render_self'")
