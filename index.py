@@ -174,3 +174,145 @@ class Node(object):
     def render_self(self):
         raise NotImplementedError(
             "The Abstract Node Class doesn't define 'render_self'")
+
+
+class Primitive(Node):
+    def __init__(self):
+        super(Primitive,self).__init__()
+        self.call_list=None
+
+    def render_self(self):
+        glCallList(self.call_list)
+
+class Spehere(Primitive):
+    #for sphere
+    def __init__(self):
+        super(Spehere,self).__init__()
+        self.call_list=G_OBJ_SPHERE
+
+class Cube(Primitive):
+    #for sphere
+    def __init__(self):
+        super(Spehere,self).__init__()
+        self.call_list=G_OBJ_CUBE
+
+    
+class HierarichalNode(Node):
+    def __init__(self):
+        super(HierarichalNode,self).__init__()
+        self.child_nodes=[]
+    def render_self(self):
+        for node in self.child_nodes:
+            node.render()
+
+class SnowFigure(HierarchicalNode):
+    def __init__(self):
+        super(SnowFigure, self).__init__()
+        self.child_nodes = [Sphere(), Sphere(), Sphere()]
+        self.child_nodes[0].translate(0, -0.6, 0) # scale 1.0
+        self.child_nodes[1].translate(0, 0.1, 0)
+        self.child_nodes[1].scaling_matrix = numpy.dot(
+            self.scaling_matrix, scaling([0.8, 0.8, 0.8]))
+        self.child_nodes[2].translate(0, 0.75, 0)
+        self.child_nodes[2].scaling_matrix = numpy.dot(
+            self.scaling_matrix, scaling([0.7, 0.7, 0.7]))
+        for child_node in self.child_nodes:
+            child_node.color_index = color.MIN_COLOR
+        self.aabb = AABB([0.0, 0.0, 0.0], [0.5, 1.1, 0.5])
+
+
+class Interaction(object):
+
+    def __init__(self):
+        # ?pressed mouse button
+        self.pressed-None
+        #getting the camera location:
+        self.translation=[0,0,0,0]
+        #getting the camera direction
+        self.trackball=trackball.Trackball(theta = -25,distance=15)
+        #getting the rotation trackball
+        self.mouse_loc=None
+        #getting the mouse location
+        self.callbacks=defaultdict()
+
+        self.register()
+
+    def register(self):
+        """ register callbacks with glut """
+        glutMouseFunc(self.handle_mouse_button)
+        glutMotionFunc(self.handle_mouse_move)
+        glutKeyboardFunc(self.handle_keystroke)
+        glutSpecialFunc(self.handle_keystroke)
+    def translate(self, x, y, z):
+        """ translate the camera """
+        self.translation[0] += x
+        self.translation[1] += y
+        self.translation[2] += z
+
+    def handle_mouse_button(self, button, mode, x, y):
+        """ Called when the mouse button is pressed or released """
+        xSize, ySize = glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT)
+        y = ySize - y  # invert the y coordinate because OpenGL is inverted
+        self.mouse_loc = (x, y)
+
+        if mode == GLUT_DOWN:
+            self.pressed = button
+            if button == GLUT_RIGHT_BUTTON:
+                pass
+            elif button == GLUT_LEFT_BUTTON:  # pick
+                self.trigger('pick', x, y)
+            elif button == 3:  # scroll up
+                self.translate(0, 0, 1.0)
+            elif button == 4:  # scroll up
+                self.translate(0, 0, -1.0)
+        else:  # mouse button release
+            self.pressed = None
+        glutPostRedisplay()
+
+    def handle_mouse_move(self, x, screen_y):
+        """ Called when the mouse is moved """
+        xSize, ySize = glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT)
+        y = ySize - screen_y  # invert the y coordinate because OpenGL is inverted
+        if self.pressed is not None:
+            dx = x - self.mouse_loc[0]
+            dy = y - self.mouse_loc[1]
+            if self.pressed == GLUT_RIGHT_BUTTON and self.trackball is not None:
+                # ignore the updated camera loc because we want to always
+                # rotate around the origin
+                self.trackball.drag_to(self.mouse_loc[0], self.mouse_loc[1], dx, dy)
+            elif self.pressed == GLUT_LEFT_BUTTON:
+                self.trigger('move', x, y)
+            elif self.pressed == GLUT_MIDDLE_BUTTON:
+                self.translate(dx/60.0, dy/60.0, 0)
+            else:
+                pass
+            glutPostRedisplay()
+        self.mouse_loc = (x, y)
+
+    def handle_keystroke(self, key, x, screen_y):
+        """ Called on keyboard input from the user """
+        xSize, ySize = glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT)
+        y = ySize - screen_y
+        if key == 's':
+            self.trigger('place', 'sphere', x, y)
+        elif key == 'c':
+            self.trigger('place', 'cube', x, y)
+        elif key == GLUT_KEY_UP:
+            self.trigger('scale', up=True)
+        elif key == GLUT_KEY_DOWN:
+            self.trigger('scale', up=False)
+        elif key == GLUT_KEY_LEFT:
+            self.trigger('rotate_color', forward=True)
+        elif key == GLUT_KEY_RIGHT:
+            self.trigger('rotate_color', forward=False)
+        glutPostRedisplay()
+
+    def register_callback(self, name, func):
+        self.callbacks[name].append(func)
+
+    def trigger(self, name, *args, **kwargs):
+        for func in self.callbacks[name]:
+            func(*args, **kwargs)
+
+
+            
