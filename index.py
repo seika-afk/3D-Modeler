@@ -76,6 +76,29 @@ class Viewer(object):
         glEnable(GL_LIGHTING)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
+    def get_ray(self,x,y):
+        """
+        Generating a ray between near plane 
+        consumes : x,y coordinates of ray
+        Return : start,direction of ray
+                """
+        self.init_view()
+        glMatricMode(GL_MODELVIEW)
+        glLoadIdentity()
+
+        #getting two points on line
+        start= numpy.arrary(gluUnProject(x,y,0.001)
+        end= numpy.array(gluUnProject(x,y,0.999))
+
+        direction = end-start
+        direction = direction/norm(direction)
+        return (start, direction)
+    
+    def pick(self,x,y):
+        """ pick a node """
+        start,direction = self.get_ray(x,y)
+        self.scene.pick(start, direction,self.modelView)
+
 if __name__=="__main__":
     viewer=Viewer()
     viewer.main_loop()
